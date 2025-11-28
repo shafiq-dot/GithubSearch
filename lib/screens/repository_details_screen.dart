@@ -1,26 +1,92 @@
-
 import 'package:flutter/material.dart';
-import '../models/github_search_response.dart';
+import 'package:githubapp/models/github_search_response.dart';
+import 'package:githubapp/services/favorites_db.dart';
 
-class RepositoryDetailsScreen extends StatelessWidget {
+class RepositoryDetailsScreen extends StatefulWidget {
   final Repository repository;
 
   const RepositoryDetailsScreen({super.key, required this.repository});
 
   @override
+  State<RepositoryDetailsScreen> createState() => _RepositoryDetailsScreenState();
+}
+
+class _RepositoryDetailsScreenState extends State<RepositoryDetailsScreen> {
+  late Future<bool> _isFavoriteFuture;
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavoriteStatus();
+
+  }
+
+  void _loadFavoriteStatus() {
+    _isFavoriteFuture = FavoritesDatabase.instance.isFavorite(widget.repository.id);
+  }
+
+  Future<void> _toggleFavorite() async {
+    final db = FavoritesDatabase.instance;
+    final currentlyFavorite = await db.isFavorite(widget.repository.id);
+
+    if (currentlyFavorite) {
+      await db.removeFavorite(widget.repository.id);
+    } else {
+      await db.insertFavorite(widget.repository);
+    }
+
+    // Rebuild the UI
+    setState(() {
+      _loadFavoriteStatus();
+    });
+  }
+
+
+
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.blue,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          repository.name,
+          widget.repository.name,
           style: const TextStyle(fontWeight: FontWeight.bold),
           overflow: TextOverflow.ellipsis,
         ),
+        actions: [
+          FutureBuilder<bool>(
+            future: _isFavoriteFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  ),
+                );
+              }
+
+              final isFavorite = snapshot.data ?? false;
+
+              return IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.star : Icons.star_border,
+                  color: isFavorite ? Colors.amber : Colors.white,
+                ),
+                onPressed: _toggleFavorite,
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -32,7 +98,7 @@ class RepositoryDetailsScreen extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 32,
-                  backgroundImage: NetworkImage(repository.owner.avatarUrl),
+                  backgroundImage: NetworkImage(widget.repository.owner.avatarUrl),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -40,7 +106,7 @@ class RepositoryDetailsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        repository.owner.login,
+                        widget.repository.owner.login,
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -58,9 +124,9 @@ class RepositoryDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Repository Name
+            // Repository Full Name
             Text(
-              repository.fullName,
+              widget.repository.fullName,
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -70,9 +136,9 @@ class RepositoryDetailsScreen extends StatelessWidget {
             const SizedBox(height: 12),
 
             // Description
-            if (repository.description != null) ...[
+            if (widget.repository.description != null) ...[
               Text(
-                repository.description!,
+                widget.repository.description!,
                 style: const TextStyle(fontSize: 16, height: 1.5),
               ),
               const SizedBox(height: 24),
@@ -84,7 +150,7 @@ class RepositoryDetailsScreen extends StatelessWidget {
               const SizedBox(height: 24),
             ],
 
-            // Stats Row: Stars, Forks, Language
+            // Stats Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -92,19 +158,19 @@ class RepositoryDetailsScreen extends StatelessWidget {
                   icon: Icons.star,
                   color: Colors.amber,
                   label: 'Stars',
-                  value: repository.stargazersCount.toString(),
+                  value: widget.repository.stargazersCount.toString(),
                 ),
                 _buildStatItem(
                   icon: Icons.fork_left,
                   color: Colors.purple,
                   label: 'Forks',
-                  value: repository.forksCount.toString(),
+                  value: widget.repository.forksCount.toString(),
                 ),
-                if (repository.language != null)
+                if (widget.repository.language != null)
                   _buildStatItem(
                     icon: Icons.code,
-                    color: _getLanguageColor(repository.language!),
-                    label: repository.language!,
+                    color: _getLanguageColor(widget.repository.language!),
+                    label: widget.repository.language!,
                     value: '',
                   ),
               ],
@@ -112,24 +178,7 @@ class RepositoryDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 32),
 
-            // Optional: Open in Browser Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  // launchUrlString(repository.htmlUrl);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Opening ${repository.htmlUrl}')),
-                  );
-                },
-                icon: const Icon(Icons.open_in_browser),
-                label: const Text('Open in GitHub'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
+
           ],
         ),
       ),
@@ -154,10 +203,11 @@ class RepositoryDetailsScreen extends StatelessWidget {
             color: color,
           ),
         ),
-        Text(
-          value.isNotEmpty ? label : '',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
+        if (value.isNotEmpty)
+          Text(
+            label,
+            style: TextStyle(color: Colors.grey[600]),
+          ),
       ],
     );
   }
@@ -172,6 +222,9 @@ class RepositoryDetailsScreen extends StatelessWidget {
       'Go': Color(0xFF00ADD8),
       'Kotlin': Color(0xFFA97BFF),
       'Java': Color(0xFFB07219),
+      'Swift': Color(0xFFFE7D37),
+      'Ruby': Color(0xFFCC342D),
+      'C++': Color(0xFF00599C),
     };
     return map[language] ?? Colors.grey;
   }

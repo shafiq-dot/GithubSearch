@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Needed for SystemUiOverlayStyle
+import 'package:flutter/services.dart';
 import 'package:githubapp/screens/home_page.dart';
 
 void main() {

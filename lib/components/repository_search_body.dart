@@ -1,7 +1,8 @@
-// lib/components/repository_search_body.dart
 import 'package:flutter/material.dart';
-import '../models/github_search_response.dart';
-import '../screens/repository_details_screen.dart';
+import 'package:githubapp/models/github_search_response.dart';
+import 'package:githubapp/screens/repository_details_screen.dart';
+
+
 
 class RepositorySearchBody extends StatelessWidget {
   final String currentQuery;

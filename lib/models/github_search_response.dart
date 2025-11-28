@@ -1,4 +1,4 @@
-// models/github_search_response.dart
+
 class GitHubSearchResponse {
   final int totalCount;
   final bool incompleteResults;
